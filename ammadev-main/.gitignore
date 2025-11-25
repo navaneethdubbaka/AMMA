@@ -1,0 +1,39 @@
+# Dependencies
+node_modules
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build artifacts (NOT docs/ - we commit that for GitHub Pages)
+dist
+dist-ssr
+.vite
+
+# Python
+venv
+.venv
+__pycache__
+*.py[cod]
+*.pyo
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.swp
+*.swo
+*.swn
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
