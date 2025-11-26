@@ -3,15 +3,15 @@ import hashlib
 import json
 from typing import Any, Dict
 
-import google.generativeai as genai
+from openai import AsyncOpenAI
 
 
 class LLMService:
-  """Handles prompt construction and dispatching to Gemini."""
+  """Handles prompt construction and dispatching to OpenAI."""
 
   def __init__(self, api_key: str, model_name: str) -> None:
-    genai.configure(api_key=api_key)
-    self._model = genai.GenerativeModel(model_name)
+    self._client = AsyncOpenAI(api_key=api_key)
+    self._model = model_name
 
   async def build_prompt(self, context: Dict[str, Any]) -> str:
     """Return a deterministic prompt string for the provided patient context."""
@@ -63,9 +63,25 @@ class LLMService:
     return prompt
 
   async def request_script(self, prompt: str) -> Dict[str, Any]:
-    """Call Gemini with the prepared prompt."""
-    result = await asyncio.to_thread(self._model.generate_content, prompt)
-    text = (result.text or "").strip()
+    """Call OpenAI with the prepared prompt."""
+    response = await self._client.chat.completions.create(
+      model=self._model,
+      messages=[
+        {
+          "role": "system",
+          "content": "You are a medical video script writer. Generate clear, compassionate, patient-friendly explanations. Always return valid JSON."
+        },
+        {
+          "role": "user",
+          "content": prompt
+        }
+      ],
+      response_format={"type": "json_object"},
+      temperature=0.7
+    )
+    
+    text = response.choices[0].message.content or ""
+    text = text.strip()
 
     try:
       parsed = json.loads(text)

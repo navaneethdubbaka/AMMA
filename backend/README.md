@@ -16,18 +16,29 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Create a `.env` file in `backend/`:
+**IMPORTANT:** Create a `.env` file in `backend/` directory with your actual credentials:
 
+```bash
+# Copy the example file
+cp env.example .env
+
+# Then edit .env with your actual values
 ```
-SUPABASE_URL=...
-SUPABASE_SERVICE_KEY=...
-GEMINI_API_KEY=sk-...
-GEMINI_MODEL=gemini-1.5-pro
-VIDEO_API_ENDPOINT=https://video.provider.com/v1
-VIDEO_API_KEY=vk-...
-STORAGE_BUCKET=patient-files
+
+Required environment variables:
+```
+DATABASE_PATH=amma_health.db
+STORAGE_DIR=storage
+OPENAI_API_KEY=sk-your-openai-api-key-here
+OPENAI_MODEL=gpt-4o
+OPENAI_SORA_MODEL=sora
 REUSE_CASE_ENABLED=true
 ```
+
+**Note:** 
+- Without a `.env` file, the server will fail to start with validation errors.
+- The database file (`amma_health.db`) will be created automatically on first run.
+- Initialize sample data: `python init_db.py`
 
 ## Development
 

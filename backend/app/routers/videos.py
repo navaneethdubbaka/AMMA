@@ -14,9 +14,17 @@ from app.services.video_generator import VideoGeneratorService
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
-settings = get_settings()
-llm_service = LLMService(settings.gemini_api_key, settings.gemini_model)
-video_service = VideoGeneratorService(settings.video_api_endpoint, settings.video_api_key)
+
+def get_llm_service() -> LLMService:
+  """Lazy initialization of LLM service."""
+  settings = get_settings()
+  return LLMService(settings.openai_api_key, settings.openai_model)
+
+
+def get_video_service() -> VideoGeneratorService:
+  """Lazy initialization of video service."""
+  settings = get_settings()
+  return VideoGeneratorService(settings.openai_api_key, settings.openai_sora_model)
 
 
 def _context_to_prompt_payload(context: PatientContext, request: VideoGenerationRequest) -> Dict[str, Any]:
@@ -59,6 +67,7 @@ async def generate_video(
   context = await supabase_service.fetch_patient_context(request.doctor_email, request.patient_email)
   prompt_payload = _context_to_prompt_payload(context, request)
 
+  llm_service = get_llm_service()
   prompt = await llm_service.build_prompt(prompt_payload)
   script = await llm_service.request_script(prompt)
 
@@ -79,6 +88,7 @@ async def generate_video(
         metadata_id=reusable.get("id"),
       )
 
+  video_service = get_video_service()
   video_payload = await video_service.create_video(
     script_payload=script,
     metadata={
@@ -90,15 +100,28 @@ async def generate_video(
     },
   )
 
-  output_url = video_payload.get("output_url")
+  output_url = video_payload.get("video_url")
   if not output_url:
     raise HTTPException(
       status_code=status.HTTP_502_BAD_GATEWAY,
-      detail="Video provider did not return an output URL.",
+      detail="Video provider did not return a video URL.",
     )
 
-  storage_service = StorageService(supabase_service.client, supabase_service.storage_bucket)
-  public_url = await storage_service.upload_from_url(output_url, case_key=case_key)
+  # Handle mock videos (skip download/upload for placeholder URLs)
+  if video_payload.get("mock"):
+    # For mock videos, use a placeholder video file
+    # In production, this would be replaced with actual video from Sora
+    storage_service = StorageService(storage_dir=supabase_service.storage_bucket)
+    # Use demo video or create a placeholder
+    demo_video_path = storage_service.videos_dir / "demo_video.mp4"
+    if not demo_video_path.exists():
+      # Create an empty placeholder file (or copy from public folder)
+      demo_video_path.touch()
+    public_url = f"/storage/videos/demo_video.mp4"
+  else:
+    # Real video: download and upload to storage
+    storage_service = StorageService(storage_dir=supabase_service.storage_bucket)
+    public_url = await storage_service.upload_from_url(output_url, case_key=case_key)
 
   metadata = await supabase_service.save_video_metadata(
     doctor_email=request.doctor_email,

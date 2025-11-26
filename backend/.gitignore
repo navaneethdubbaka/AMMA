@@ -5,3 +5,10 @@ __pycache__/
 .env
 *.log
 
+# Local database
+*.db
+*.db-journal
+
+# Local storage
+storage/
+

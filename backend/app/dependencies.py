@@ -1,31 +1,45 @@
 import asyncio
+import os
 from functools import lru_cache
+from pathlib import Path
 from typing import AsyncGenerator
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.services.supabase import SupabaseService
 
 
-load_dotenv()
+# Determine backend directory and .env file path
+_backend_dir = Path(__file__).parent.parent.resolve()
+_env_file = _backend_dir / ".env"
+
+# Load .env file before creating Settings
+if _env_file.exists():
+    load_dotenv(dotenv_path=str(_env_file), override=True)
+else:
+    # Fallback: try current directory
+    load_dotenv(override=True)
 
 
-class Settings(BaseModel):
+class Settings(BaseSettings):
   """Runtime configuration loaded from environment variables."""
 
-  supabase_url: str = Field(..., alias="SUPABASE_URL")
-  supabase_service_key: str = Field(..., alias="SUPABASE_SERVICE_KEY")
-  gemini_api_key: str = Field(..., alias="GEMINI_API_KEY")
-  gemini_model: str = Field("gemini-1.5-pro", alias="GEMINI_MODEL")
-  video_api_endpoint: str = Field(..., alias="VIDEO_API_ENDPOINT")
-  video_api_key: str = Field(..., alias="VIDEO_API_KEY")
-  storage_bucket: str = Field("patient-files", alias="STORAGE_BUCKET")
-  reuse_case_enabled: bool = Field(True, alias="REUSE_CASE_ENABLED")
+  database_path: str = Field(default="amma_health.db", alias="DATABASE_PATH")
+  storage_dir: str = Field(default="storage", alias="STORAGE_DIR")
+  openai_api_key: str = Field(..., alias="OPENAI_API_KEY")  # Required
+  openai_model: str = Field(default="gpt-4o", alias="OPENAI_MODEL")
+  openai_sora_model: str = Field(default="sora-2", alias="OPENAI_SORA_MODEL")
+  reuse_case_enabled: bool = Field(default=True, alias="REUSE_CASE_ENABLED")
 
-  model_config = {
-    "populate_by_name": True
-  }
+  model_config = SettingsConfigDict(
+    env_file=str(_env_file) if _env_file.exists() else ".env",
+    env_file_encoding="utf-8",
+    case_sensitive=False,  # Case insensitive matching
+    extra="ignore",
+    populate_by_name=True,  # Allow both field name and alias
+  )
 
 
 @lru_cache
@@ -35,16 +49,15 @@ def get_settings() -> Settings:
 
 
 async def get_supabase_service() -> AsyncGenerator[SupabaseService, None]:
-  """Provide a Supabase service instance per-request."""
+  """Provide a database service instance per-request."""
   settings = get_settings()
   service = SupabaseService(
-    url=settings.supabase_url,
-    key=settings.supabase_service_key,
-    storage_bucket=settings.storage_bucket,
+    db_path=settings.database_path,
+    storage_bucket=settings.storage_dir,
     reuse_case_enabled=settings.reuse_case_enabled
   )
   try:
     yield service
   finally:
-    await asyncio.to_thread(service.close)
+    await service.close()
 

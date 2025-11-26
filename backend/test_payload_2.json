@@ -1,0 +1,10 @@
+{
+  "doctor_email": "demo.doctor@amma.health",
+  "patient_email": "anish.polakala@gmail.com",
+  "diagnosis_code": "E11.9",
+  "procedure_code": "99213",
+  "recovery_day": 7,
+  "recovery_milestone": "Week 1 Diabetes Management Checkpoint",
+  "force_regenerate": false
+}
+

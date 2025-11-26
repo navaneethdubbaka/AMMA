@@ -1,0 +1,10 @@
+{
+  "doctor_email": "demo.doctor@amma.health",
+  "patient_email": "keisha.washington@email.com",
+  "diagnosis_code": "J45.30",
+  "procedure_code": "99213",
+  "recovery_day": null,
+  "recovery_milestone": null,
+  "force_regenerate": false
+}
+
