@@ -31,7 +31,13 @@ DATABASE_PATH=amma_health.db
 STORAGE_DIR=storage
 OPENAI_API_KEY=sk-your-openai-api-key-here
 OPENAI_MODEL=gpt-4o
-OPENAI_SORA_MODEL=sora
+HEYGEN_API_KEY=your-heygen-api-key
+HEYGEN_AVATAR_ID=your-avatar-id
+HEYGEN_VOICE_ID=your-voice-id
+HEYGEN_RATIO=16:9
+HEYGEN_BACKGROUND=
+HEYGEN_POLL_INTERVAL=5
+HEYGEN_POLL_TIMEOUT=300
 REUSE_CASE_ENABLED=true
 ```
 
@@ -49,9 +55,16 @@ uvicorn app.main:app --reload --port 8080
 ### Key Endpoints
 
 - `GET /health` – basic readiness probe
-- `POST /videos/generate` – triggers fetch → prompt → video pipeline and returns the public video URL. Include optional `recovery_day` (1-30) and `recovery_milestone` to have the service pull the day's schedule plus prior milestone context for the LLM.
+- `POST /videos/generate` – triggers fetch → prompt → HeyGen template merge and returns the public video URL. Include optional `recovery_day` (1-30) and `recovery_milestone` to have the service pull the day's schedule plus prior milestone context for the LLM.
 
 The `videos/generate` route automatically checks for reusable videos via a deterministic `case_key`. Pass `force_regenerate=true` to skip reuse.
+
+### HeyGen integration
+
+- Videos are generated via the HeyGen Avatar Video (V2) API using the LLM script directly (no templates). ([API reference](https://docs.heygen.com/reference/create-an-avatar-video-v2))
+- Provide `HEYGEN_API_KEY`, `HEYGEN_AVATAR_ID`, and `HEYGEN_VOICE_ID` in `.env`. Optional per-request overrides `avatar_id`, `voice_id`, `video_ratio`, `background`, and `captions` can be supplied in the payload.
+- The backend polls `https://api.heygen.com/v1/video_status.get` until the video is completed, then downloads the final MP4 and stores it in Supabase storage.
+- Video reuse is keyed by `diagnosis_code + procedure_code + recovery_milestone + doctor_specialty`. If two requests share those attributes, they will receive the same previously generated video unless `force_regenerate=true` is provided.
 
 #### Sample payload
 

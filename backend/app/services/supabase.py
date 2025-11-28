@@ -53,6 +53,9 @@ class SupabaseService:
     if not doctor:
       raise ValueError(f"Doctor not found: {doctor_email}")
 
+    print(f"[INFO] Loaded patient record: {patient_email} -> {patient}")
+    print(f"[INFO] Loaded doctor record: {doctor_email} -> {doctor}")
+
     epic_rows = await self._db.fetch_all(
       "epic_patient_data",
       {"patient_email": patient_email},

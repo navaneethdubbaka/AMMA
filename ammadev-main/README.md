@@ -182,7 +182,7 @@ See `docs/EPIC_SETUP_GUIDE.md` for detailed instructions.
    python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
    pip install -r requirements.txt
    ```
-2. Create `backend/.env` using the keys described in `backend/README.md` (Supabase service key, Gemini API key/model, video provider endpoint/key, bucket name).
+2. Create `backend/.env` using the keys described in `backend/README.md` (Supabase service key, OpenAI API key/model, Sora model, bucket name).
 3. Start the service:
    ```bash
    uvicorn app.main:app --reload --port 8080

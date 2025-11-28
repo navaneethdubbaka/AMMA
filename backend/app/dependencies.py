@@ -30,7 +30,13 @@ class Settings(BaseSettings):
   storage_dir: str = Field(default="storage", alias="STORAGE_DIR")
   openai_api_key: str = Field(..., alias="OPENAI_API_KEY")  # Required
   openai_model: str = Field(default="gpt-4o", alias="OPENAI_MODEL")
-  openai_sora_model: str = Field(default="sora-2", alias="OPENAI_SORA_MODEL")
+  heygen_api_key: str = Field(..., alias="HEYGEN_API_KEY")
+  heygen_avatar_id: str = Field(..., alias="HEYGEN_AVATAR_ID")
+  heygen_voice_id: str = Field(..., alias="HEYGEN_VOICE_ID")
+  heygen_ratio: str = Field(default="16:9", alias="HEYGEN_RATIO")
+  heygen_background: str | None = Field(default=None, alias="HEYGEN_BACKGROUND")
+  heygen_poll_interval: int = Field(default=5, alias="HEYGEN_POLL_INTERVAL")
+  heygen_poll_timeout: int = Field(default=300, alias="HEYGEN_POLL_TIMEOUT")
   reuse_case_enabled: bool = Field(default=True, alias="REUSE_CASE_ENABLED")
 
   model_config = SettingsConfigDict(

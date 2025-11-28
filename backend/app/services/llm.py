@@ -23,22 +23,35 @@ class LLMService:
     recovery_plan = context.get("recovery_plan")
     prior_recovery = context.get("prior_recovery_context", [])
 
+    patient_name = f"{patient.get('first_name', '').strip()} {patient.get('last_name', '').strip()}".strip()
+    doctor_name = f"Dr. {doctor.get('last_name', '').strip() or doctor.get('first_name', '').strip()}".strip()
     diagnoses_text = ", ".join(diagnoses) or "Not specified"
     medications_text = ", ".join(medications) or "No active medications listed"
 
+    storyboard = """
+You are a medical video script writer crafting a 45-second animated explainer for patients. 
+Output JSON with keys: intro, brain_intro, what_is, benign_vs_malignant, symptoms, diagnosis, closing, narrator_tone, visual_style.
+Each of intro through closing must be an object like {"narration": "...", "visuals": "..."}.
+Follow this scene plan:
+1. Opening (0-5s): friendly cartoon hospital, narrator says “Today, let’s understand what a brain tumour is.”
+2. Brain introduction (5-10s): glowing cartoon brain highlighting functions.
+3. What is a brain tumour? (10-20s): soft visualization of cells growing.
+4. Benign vs Malignant (20-27s): split screen characters, calm vs assertive.
+5. Symptoms (27-35s): illustrate headaches, blurry vision, speech difficulty, balance issues.
+6. Diagnosis (35-42s): MRI/CT scan animation with doctor explaining gently.
+7. Closing (42-45s): hopeful hospital scene, emphasize early diagnosis & care plan.
+Tone: compassionate, plain language, reassuring.
+Visual style: gentle colors, smooth motion, friendly cartoon aesthetic, no frightening imagery.
+Never mention JSON or technical instructions inside narration.
+"""
+
     prompt = (
-      f"You are creating a compassionate clinical explainer video.\n"
-      f"Patient: {patient['first_name']} {patient['last_name']}\n"
-      f"Doctor: Dr. {doctor['last_name']}\n"
+      f"{storyboard}\n"
+      f"Patient: {patient_name or 'Patient'}\n"
+      f"Doctor: {doctor_name or 'Doctor'}\n"
       f"Diagnoses: {diagnoses_text}\n"
       f"Medications: {medications_text}\n"
       f"Additional Notes:\n{notes}\n"
-      "Generate a concise script with:\n"
-      "1. Friendly greeting\n"
-      "2. Plain-language condition overview\n"
-      "3. Treatment plan and expectations\n"
-      "4. Key reminders and next steps\n"
-      "Return JSON with keys intro, overview, treatment, reminders."
     )
 
     if recovery_plan:
@@ -98,11 +111,17 @@ class LLMService:
     *,
     diagnosis_code: str,
     procedure_code: str,
-    script_body: str,
-    doctor_specialty: str,
+    recovery_milestone: str | None = None,
+    doctor_specialty: str | None = None,
   ) -> str:
     """Generate deterministic key for video reuse."""
-    summary = f"{diagnosis_code}:{procedure_code}:{doctor_specialty}:{script_body}".lower()
+    parts = [
+      diagnosis_code or "unknown_diagnosis",
+      procedure_code or "unknown_procedure",
+      (recovery_milestone or "").strip() or "no_milestone",
+      (doctor_specialty or "").strip() or "general",
+    ]
+    summary = ":".join(parts).lower()
     digest = hashlib.sha256(summary.encode("utf-8")).hexdigest()
     return digest
 

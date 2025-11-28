@@ -24,7 +24,15 @@ def get_llm_service() -> LLMService:
 def get_video_service() -> VideoGeneratorService:
   """Lazy initialization of video service."""
   settings = get_settings()
-  return VideoGeneratorService(settings.openai_api_key, settings.openai_sora_model)
+  return VideoGeneratorService(
+    api_key=settings.heygen_api_key,
+    avatar_id=settings.heygen_avatar_id,
+    voice_id=settings.heygen_voice_id,
+    ratio=settings.heygen_ratio,
+    background=settings.heygen_background or None,
+    poll_interval=settings.heygen_poll_interval,
+    poll_timeout=settings.heygen_poll_timeout,
+  )
 
 
 def _context_to_prompt_payload(context: PatientContext, request: VideoGenerationRequest) -> Dict[str, Any]:
@@ -74,8 +82,8 @@ async def generate_video(
   case_key = llm_service.compute_case_key(
     diagnosis_code=request.diagnosis_code,
     procedure_code=request.procedure_code,
-    script_body=script.get("content", prompt),
-    doctor_specialty=context.doctor.get("specialty", "general"),
+    recovery_milestone=request.recovery_milestone,
+    doctor_specialty=context.doctor.get("specialty"),
   )
 
   if not request.force_regenerate:
