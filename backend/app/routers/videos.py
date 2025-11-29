@@ -119,16 +119,30 @@ async def generate_video(
   if video_payload.get("mock"):
     # For mock videos, use a placeholder video file
     # In production, this would be replaced with actual video from Sora
-    storage_service = StorageService(storage_dir=supabase_service.storage_bucket)
+    supabase_client = supabase_service.client if supabase_service.use_supabase else None
+    storage_service = StorageService(
+      storage_dir=supabase_service.storage_bucket,
+      storage_bucket=supabase_service.storage_bucket,
+      supabase_client=supabase_client,
+    )
     # Use demo video or create a placeholder
-    demo_video_path = storage_service.videos_dir / "demo_video.mp4"
-    if not demo_video_path.exists():
-      # Create an empty placeholder file (or copy from public folder)
-      demo_video_path.touch()
-    public_url = f"/storage/videos/demo_video.mp4"
+    if not storage_service.use_supabase:
+      demo_video_path = storage_service.videos_dir / "demo_video.mp4"
+      if not demo_video_path.exists():
+        # Create an empty placeholder file (or copy from public folder)
+        demo_video_path.touch()
+      public_url = f"/storage/videos/demo_video.mp4"
+    else:
+      # For Supabase, we'd need to upload the demo video, but for now use a placeholder URL
+      public_url = f"/storage/videos/demo_video.mp4"
   else:
     # Real video: download and upload to storage
-    storage_service = StorageService(storage_dir=supabase_service.storage_bucket)
+    supabase_client = supabase_service.client if supabase_service.use_supabase else None
+    storage_service = StorageService(
+      storage_dir=supabase_service.storage_bucket,
+      storage_bucket=supabase_service.storage_bucket,
+      supabase_client=supabase_client,
+    )
     public_url = await storage_service.upload_from_url(output_url, case_key=case_key)
 
   metadata = await supabase_service.save_video_metadata(

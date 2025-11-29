@@ -2,10 +2,19 @@
 
 Backend service that orchestrates:
 
-1. Fetching patient/doctor context from Supabase
+1. Fetching patient/doctor context from database (Supabase or local SQLite)
 2. Building a personalized explainer prompt via an LLM
 3. Requesting an AI video generation provider
-4. Uploading the finished MP4 to Supabase Storage and persisting metadata
+4. Uploading the finished MP4 to storage (Supabase Storage or local filesystem) and persisting metadata
+
+## Database & Storage Options
+
+The backend supports two modes:
+
+- **Supabase** (recommended for production): Uses Supabase PostgreSQL database and Supabase Storage
+- **Local SQLite** (for development): Uses local SQLite database and local file storage
+
+The system automatically detects which mode to use based on environment variables. If `SUPABASE_URL` and `SUPABASE_ANON_KEY` are provided, it uses Supabase. Otherwise, it falls back to local SQLite.
 
 ## Setup
 
@@ -25,10 +34,10 @@ cp env.example .env
 # Then edit .env with your actual values
 ```
 
-Required environment variables:
+### Environment Variables
+
+**Required for all modes:**
 ```
-DATABASE_PATH=amma_health.db
-STORAGE_DIR=storage
 OPENAI_API_KEY=sk-your-openai-api-key-here
 OPENAI_MODEL=gpt-4o
 HEYGEN_API_KEY=your-heygen-api-key
@@ -41,10 +50,26 @@ HEYGEN_POLL_TIMEOUT=300
 REUSE_CASE_ENABLED=true
 ```
 
-**Note:** 
+**For Supabase mode (recommended):**
+```
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_KEY=your-supabase-service-key  # Optional, for admin operations
+STORAGE_BUCKET=patient-files
+```
+
+**For Local SQLite mode (development):**
+```
+DATABASE_PATH=amma_health.db
+STORAGE_DIR=storage
+```
+
+**Notes:**
 - Without a `.env` file, the server will fail to start with validation errors.
-- The database file (`amma_health.db`) will be created automatically on first run.
-- Initialize sample data: `python init_db.py`
+- If both Supabase and local configs are provided, Supabase takes precedence.
+- For local SQLite: The database file (`amma_health.db`) will be created automatically on first run.
+- Initialize sample data for local SQLite: `python init_db.py`
+- For Supabase: Run the SQL setup scripts from `setup/sql/FINAL_DATABASE_SETUP.sql` in your Supabase SQL editor.
 
 ## Development
 
@@ -63,7 +88,7 @@ The `videos/generate` route automatically checks for reusable videos via a deter
 
 - Videos are generated via the HeyGen Avatar Video (V2) API using the LLM script directly (no templates). ([API reference](https://docs.heygen.com/reference/create-an-avatar-video-v2))
 - Provide `HEYGEN_API_KEY`, `HEYGEN_AVATAR_ID`, and `HEYGEN_VOICE_ID` in `.env`. Optional per-request overrides `avatar_id`, `voice_id`, `video_ratio`, `background`, and `captions` can be supplied in the payload.
-- The backend polls `https://api.heygen.com/v1/video_status.get` until the video is completed, then downloads the final MP4 and stores it in Supabase storage.
+- The backend polls `https://api.heygen.com/v1/video_status.get` until the video is completed, then downloads the final MP4 and stores it in storage (Supabase Storage or local filesystem).
 - Video reuse is keyed by `diagnosis_code + procedure_code + recovery_milestone + doctor_specialty`. If two requests share those attributes, they will receive the same previously generated video unless `force_regenerate=true` is provided.
 
 #### Sample payload

@@ -8,43 +8,59 @@ import httpx
 
 
 class StorageService:
-  """Local file storage service (replaces Supabase storage for development)."""
+  """Storage service supporting both Supabase Storage and local file system."""
 
-  def __init__(self, storage_dir: str = "storage") -> None:
+  def __init__(
+    self,
+    storage_dir: str = "storage",
+    storage_bucket: str = "patient-files",
+    supabase_client=None,
+  ) -> None:
     self.storage_dir = Path(storage_dir)
-    self.videos_dir = self.storage_dir / "videos"
-    self.videos_dir.mkdir(parents=True, exist_ok=True)
+    self.storage_bucket = storage_bucket
+    self._supabase = supabase_client
+    self.use_supabase = supabase_client is not None
+    
+    if not self.use_supabase:
+      # Local storage setup
+      self.videos_dir = self.storage_dir / "videos"
+      self.videos_dir.mkdir(parents=True, exist_ok=True)
 
   async def upload_from_url(self, source_url: str, *, case_key: str) -> str:
-    """Download a video from URL or copy from file path and save it to local storage."""
+    """Download a video from URL and upload to storage (Supabase or local)."""
     filename = f"{case_key}-{uuid.uuid4().hex}.mp4"
+    
+    # Download the video first
+    async with httpx.AsyncClient(timeout=120) as client:
+      response = await client.get(source_url)
+      response.raise_for_status()
+      video_data = response.content
+
+    if self.use_supabase:
+      # Upload to Supabase Storage
+      file_path = f"videos/{filename}"
+      try:
+        # Upload file to Supabase Storage bucket
+        upload_res = self._supabase.storage.from_(self.storage_bucket).upload(
+          file_path,
+          video_data,
+          file_options={"content-type": "video/mp4", "upsert": "false"}
+        )
+        
+        # Get public URL
+        url_data = self._supabase.storage.from_(self.storage_bucket).get_public_url(file_path)
+        public_url = url_data if isinstance(url_data, str) else url_data.get("publicUrl", url_data)
+        print(f"[INFO] Video uploaded to Supabase Storage: {public_url}")
+        return public_url
+      except Exception as e:
+        print(f"[ERROR] Supabase upload failed: {e}, falling back to local storage")
+        # Fall back to local storage on error
+        self.use_supabase = False
+        self.videos_dir = self.storage_dir / "videos"
+        self.videos_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Local storage fallback
     file_path = self.videos_dir / filename
-
-    # Check if source_url is a file path (from Sora download) or a URL
-    if source_url.startswith("/") or source_url.startswith("\\") or ":" in source_url and not source_url.startswith("http"):
-      # It's a file path - copy it
-      from pathlib import Path
-      source_path = Path(source_url)
-      if source_path.exists():
-        import shutil
-        await asyncio.to_thread(shutil.copy2, source_path, file_path)
-        # Clean up temp file
-        try:
-          await asyncio.to_thread(source_path.unlink)
-        except:
-          pass
-      else:
-        raise FileNotFoundError(f"Source file not found: {source_url}")
-    else:
-      # It's a URL - download it
-      async with httpx.AsyncClient(timeout=120) as client:
-        response = await client.get(source_url)
-        response.raise_for_status()
-        payload = response.content
-
-      await asyncio.to_thread(file_path.write_bytes, payload)
-
-    # Return a file:// URL or relative path that can be served by FastAPI
-    # In production, you'd serve this via a static file endpoint
+    await asyncio.to_thread(file_path.write_bytes, video_data)
     return f"/storage/videos/{filename}"
 

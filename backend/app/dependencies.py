@@ -26,10 +26,21 @@ else:
 class Settings(BaseSettings):
   """Runtime configuration loaded from environment variables."""
 
+  # Database configuration (local or Supabase)
   database_path: str = Field(default="amma_health.db", alias="DATABASE_PATH")
+  supabase_url: str | None = Field(default=None, alias="SUPABASE_URL")
+  supabase_anon_key: str | None = Field(default=None, alias="SUPABASE_ANON_KEY")
+  supabase_service_key: str | None = Field(default=None, alias="SUPABASE_SERVICE_KEY")
+  
+  # Storage configuration
   storage_dir: str = Field(default="storage", alias="STORAGE_DIR")
+  storage_bucket: str = Field(default="patient-files", alias="STORAGE_BUCKET")
+  
+  # OpenAI configuration
   openai_api_key: str = Field(..., alias="OPENAI_API_KEY")  # Required
   openai_model: str = Field(default="gpt-4o", alias="OPENAI_MODEL")
+  
+  # HeyGen configuration
   heygen_api_key: str = Field(..., alias="HEYGEN_API_KEY")
   heygen_avatar_id: str = Field(..., alias="HEYGEN_AVATAR_ID")
   heygen_voice_id: str = Field(..., alias="HEYGEN_VOICE_ID")
@@ -37,6 +48,8 @@ class Settings(BaseSettings):
   heygen_background: str | None = Field(default=None, alias="HEYGEN_BACKGROUND")
   heygen_poll_interval: int = Field(default=5, alias="HEYGEN_POLL_INTERVAL")
   heygen_poll_timeout: int = Field(default=300, alias="HEYGEN_POLL_TIMEOUT")
+  
+  # Feature flags
   reuse_case_enabled: bool = Field(default=True, alias="REUSE_CASE_ENABLED")
 
   model_config = SettingsConfigDict(
@@ -57,10 +70,16 @@ def get_settings() -> Settings:
 async def get_supabase_service() -> AsyncGenerator[SupabaseService, None]:
   """Provide a database service instance per-request."""
   settings = get_settings()
+  
+  # Use service key for admin operations if available, otherwise use anon key
+  supabase_key = settings.supabase_service_key or settings.supabase_anon_key
+  
   service = SupabaseService(
     db_path=settings.database_path,
-    storage_bucket=settings.storage_dir,
-    reuse_case_enabled=settings.reuse_case_enabled
+    storage_bucket=settings.storage_bucket,
+    reuse_case_enabled=settings.reuse_case_enabled,
+    supabase_url=settings.supabase_url,
+    supabase_key=supabase_key,
   )
   try:
     yield service
